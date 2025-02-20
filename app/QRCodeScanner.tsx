@@ -1,294 +1,221 @@
-import { Ionicons } from '@expo/vector-icons';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import { useState, useRef } from 'react';
-import { Linking } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Button, 
-  StyleSheet, 
+  Alert, 
+  View, 
   Text, 
   TouchableOpacity, 
-  View, 
-  Dimensions,
-  TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform
+  StyleSheet, 
+  Animated, 
+  ActivityIndicator 
 } from 'react-native';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { useRouter } from 'expo-router';
 
-export default function App() {
+export default function QRCodeScanner() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [barcodeData, setBarcodeData] = useState<string | null>(null);
-  const [barcodeType, setBarcodeType] = useState<string | null>(null);
-  const [manualEntry, setManualEntry] = useState<string>('');
+  const [componentId, setComponentId] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const cameraRef = useRef(null);
+  const router = useRouter();
+  const scanAnimation = useRef(new Animated.Value(0)).current;
 
-  if (!permission) {
-    return <View />;
-  }
+  useEffect(() => {
+    if (!permission) {
+      requestPermission();
+    }
+    startScanAnimation();
+  }, [permission]);
 
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="grant permission" />
-      </View>
-    );
-  }
+  const startScanAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnimation, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(scanAnimation, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  };
 
   function toggleCameraFacing() {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
   }
 
   const handleBarCodeScanned = ({ type, data }: { type: string, data: string }) => {
-    setBarcodeType(type);
     setBarcodeData(data);
-  };
-
-  const handleManualSubmit = () => {
-    if (manualEntry.trim()) {
-      setBarcodeType('manual');
-      setBarcodeData(manualEntry.trim());
-      setManualEntry('');
+    const match = data.match(/(\d+)$/);
+    if (match) {
+      setComponentId(match[0]);
+    } else {
+      setComponentId(null);
+      Alert.alert("Invalid QR Code", "The scanned QR code does not contain a valid component ID.");
     }
   };
 
-  const requestToReserve = () => {
-    if (barcodeData) {
-      console.log(`Opening URL: ${barcodeData}`);
-      Linking.openURL(barcodeData).catch(err => 
-        console.error("Failed to open URL:", err)
-      );
+  const fetchComponentDetails = async () => {
+    if (!componentId) {
+      Alert.alert("Error", "No valid component ID found.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch(`https://thilina80.tiiny.io/fetch_component.php?id=${componentId}`);
+      const result = await response.json();
+      if (result.success) {
+        router.push({
+          pathname: '/ComponentDetails',
+          params: { component: JSON.stringify(result.component) },
+        });
+      } else {
+        Alert.alert("Not Found", "No component found with this ID.");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to fetch component details.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView style={styles.scrollContainer}>
-        <View style={styles.cameraContainer}>
-          <CameraView 
-            ref={cameraRef}
-            style={styles.camera} 
-            facing={facing}
-            autofocus="on"
-            barcodeScannerSettings={{
-              barcodeTypes: [
-                "qr",
-                "ean13",
-                "ean8",
-                "upc_e",
-                "code39",
-                "code93",
-                "code128",
-                "itf14",
-                "codabar",
-                "datamatrix",
-                "pdf417"
-              ],
-            }}
-            onBarcodeScanned={handleBarCodeScanned}
-          >
-            <View style={styles.overlay}>
-              <View style={styles.scanFrame} />
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-                  <Text style={styles.buttonText}><Ionicons name="camera-reverse" size={44} color="white" /> </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </CameraView>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.cameraContainer}>
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing={facing}
+          autofocus="on"
+          barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          onBarcodeScanned={handleBarCodeScanned}
+        >
+          <View style={styles.overlay}>
+            <Animated.View 
+              style={[
+                styles.scanLine,
+                {
+                  top: scanAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['5%', '85%'],
+                  }),
+                }
+              ]}
+            />
+            <View style={styles.scanFrame} />
+            <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing}>
+              <Text style={styles.buttonText}>Flip Camera</Text>
+            </TouchableOpacity>
+          </View>
+        </CameraView>
+      </View>
 
-        <View style={styles.manualEntryContainer}>
-          <Text style={styles.manualEntryTitle1}>
-            Can't find component QR?
-          </Text>
-          <Text style={styles.manualEntryTitle}>
-            Enter your Component ID here.
-          </Text>
-          <TextInput
-            style={styles.input}
-            value={manualEntry}
-            onChangeText={setManualEntry}
-            placeholder="Component ID: eg. CMP12345"
-            placeholderTextColor="#666"
-            keyboardType="numeric"
-          />
-          <TouchableOpacity 
-            style={styles.submitButton}
-            onPress={handleManualSubmit}
+      {barcodeData && componentId && (
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Scan QR Code Information</Text>
+          <Text style={styles.cardText}>Scanned Data: {barcodeData}</Text>
+          <Text style={styles.cardText}>Component ID: {componentId}</Text>
+          <TouchableOpacity
+            style={styles.viewDetailsButton}
+            onPress={fetchComponentDetails}
+            disabled={loading}
           >
-            <Text style={styles.submitButtonText}>Search Manually</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>View Component Details</Text>
+            )}
           </TouchableOpacity>
         </View>
-
-        {barcodeData && (
-          <View style={styles.barcodeCard}>
-            <Text style={styles.cardTitle}>Scan QR code Information</Text>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardText}>QR code type: {barcodeType}</Text>
-              <Text style={styles.cardText}>Your Component reservation link is  {barcodeData}</Text>
-              <Text style={styles.timestamp}>
-                Scanned at: {new Date().toLocaleString()}
-              </Text>
-              <TouchableOpacity 
-                style={styles.reserveButton}
-                onPress={requestToReserve}
-              >
-                <Text style={styles.reserveButtonText}>Request to Reserve</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      )}
+    </View>
   );
 }
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const CAMERA_HEIGHT = SCREEN_HEIGHT * 0.4;
-const FRAME_WIDTH = SCREEN_WIDTH * 0.9;
-const FRAME_HEIGHT = FRAME_WIDTH;
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#E8F4FF', 
+    padding: 10 
   },
-  scrollContainer: {
-    flex: 1,
+  cameraContainer: { 
+    flex: 1, 
+    borderRadius: 10, 
+    overflow: 'hidden' 
   },
-  message: {
-    textAlign: 'center',
-    paddingBottom: 10,
+  camera: { 
+    flex: 1 
   },
-  cameraContainer: {
-    height: CAMERA_HEIGHT,
-    overflow: 'hidden',
-  },
-  camera: {
-    height: CAMERA_HEIGHT,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  overlay: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
   scanFrame: {
-    width: FRAME_WIDTH,
-    height: FRAME_WIDTH,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    backgroundColor: 'transparent',
+    width: 250,
+    height: 250,
+    borderWidth: 3,
+    borderColor: '#00ACC1', // Accent blue
     position: 'absolute',
-    left: (SCREEN_WIDTH - FRAME_WIDTH) / 2,
-    top: (CAMERA_HEIGHT - FRAME_HEIGHT) / 2,
   },
-  buttonContainer: {
+  scanLine: {
+    width: '80%',
+    height: 5,
+    backgroundColor: 'red', // Vibrant purple
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    alignSelf: 'center',
   },
-  button: {
-    backgroundColor: '#3498db',
-    padding: 12,
-    borderRadius: 30,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  manualEntryContainer: {
-    padding: 20,
-    backgroundColor: '#fff',
-    marginTop: 20,
-    marginHorizontal: 10,
-    borderRadius: 10,
-    elevation: 2,
+  flipButton: {
+    position: 'absolute',
+    bottom: 30,
+    backgroundColor: '#00ACC1',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
     shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  manualEntryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#8e44ad',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  manualEntryTitle1: {
-    fontSize: 26,
-    fontWeight: '600',
-    color: '#e74c3c',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  input: {
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    color: '#333', 
-  },
-  submitButton: {
-    backgroundColor: '#e84393',
-    padding: 10,
-    borderRadius: 5,
-  },
-  submitButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  barcodeCard: {
-    backgroundColor: 'white',
-    margin: 10,
-    borderRadius: 10,
-    padding: 15,
     elevation: 3,
+  },
+  infoCard: {
+    backgroundColor: '#FFF',
+    padding: 20,
+    borderRadius: 10,
+    marginVertical: 20,
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+  cardTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#0277BD', 
+    marginBottom: 10 
   },
-  cardContent: {
-    backgroundColor: '#f8f9fa',
-    padding: 10,
-    borderRadius: 5,
+  cardText: { 
+    fontSize: 16, 
+    color: '#424242', 
+    marginVertical: 5, 
+    textAlign: 'center' 
   },
-  cardText: {
-    fontSize: 16,
-    marginBottom: 5,
-    color: '#444',
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-    fontStyle: 'italic',
-  },
-  reserveButton: {
-    backgroundColor: '#2980b9',
-    padding: 10,
-    borderRadius: 5,
+  viewDetailsButton: {
+    backgroundColor: '#66BB6A', // Vibrant green
+    padding: 12,
+    borderRadius: 8,
     marginTop: 10,
+    alignItems: 'center',
+    width: '100%',
   },
-  reserveButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  }
+  buttonText: { 
+    color: '#FFF', 
+    fontWeight: 'bold', 
+    textAlign: 'center' 
+  },
 });

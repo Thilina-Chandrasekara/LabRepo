@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, BackHandler } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Alert,
+  ActivityIndicator,
+  BackHandler,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -28,23 +37,32 @@ export default function ComponentDetails() {
   const router = useRouter();
   const { component } = useLocalSearchParams();
 
-  // Parse component details received from MainPage
-  const parsedComponent: ComponentData | null = component ? JSON.parse(component as string) : null;
+  // Parse component details passed via router params.
+  const parsedComponent: ComponentData | null = component
+    ? JSON.parse(component as string)
+    : null;
+  // Explicitly map state fields to booleans.
+  const componentData: ComponentData | null = parsedComponent
+    ? {
+        ...parsedComponent,
+        is_reserved: parsedComponent.is_reserved === true,
+        request_to_reserve: parsedComponent.request_to_reserve === true,
+      }
+    : null;
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isRequested, setIsRequested] = useState(parsedComponent?.request_to_reserve ?? false);
+  const [isRequested, setIsRequested] = useState(componentData?.request_to_reserve ?? false);
 
   useEffect(() => {
     loadUser();
 
-    // ✅ Override hardware back button to refresh MainPage
+    // Override hardware back button.
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       handleBackPress();
-      return true; // Prevents default back action
+      return true;
     });
-
-    return () => backHandler.remove(); // Cleanup event listener
+    return () => backHandler.remove();
   }, []);
 
   const loadUser = async () => {
@@ -52,39 +70,50 @@ export default function ComponentDetails() {
       const storedUser = await AsyncStorage.getItem('user');
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+        // Map keys from stored user.
+        setUser({
+          id: parsedUser.id,
+          firstName: parsedUser.first_name,
+          lastName: parsedUser.last_name,
+          email: parsedUser.email,
+          phone: parsedUser.phone,
+          faculty: parsedUser.faculty,
+          profilePicture: parsedUser.profilePicture,
+        });
       }
     } catch (error) {
       console.error('Failed to load user data:', error);
     }
   };
 
+  // Update router params (if main page needs to update state).
   const updateMainPage = (updatedStatus: boolean) => {
     router.setParams({
-      component: JSON.stringify({ ...parsedComponent, request_to_reserve: updatedStatus }),
+      component: JSON.stringify({ ...componentData, request_to_reserve: updatedStatus }),
     });
   };
 
   const handleReserve = async () => {
-    if (!user || !parsedComponent) {
+    if (!user || !componentData) {
       Alert.alert('Error', 'User or Component information is missing.');
       return;
     }
-
     setLoading(true);
     try {
+      const userName = `${user.firstName} ${user.lastName}`;
       const response = await fetch('https://beige-leese-44.tiiny.io/request_reserve.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reg_no: parsedComponent.reg_no,
+          reg_no: componentData.reg_no,
           user_id: user.id,
-          user_name: `${user.firstName} ${user.lastName}`,
+          user_name: userName,
           email: user.email,
           phone_number: user.phone,
+          faculty: user.faculty,
+          profile_picture: user.profilePicture || '',
         }),
       });
-
       const result = await response.json();
       if (result.success) {
         Alert.alert('Success', 'Request to reserve submitted.');
@@ -101,22 +130,20 @@ export default function ComponentDetails() {
   };
 
   const handleCancelReserve = async () => {
-    if (!user || !parsedComponent) {
+    if (!user || !componentData) {
       Alert.alert('Error', 'User or Component information is missing.');
       return;
     }
-
     setLoading(true);
     try {
       const response = await fetch('https://beige-leese-44.tiiny.io/cancel_reserve.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reg_no: parsedComponent.reg_no,
+          reg_no: componentData.reg_no,
           user_id: user.id,
         }),
       });
-
       const result = await response.json();
       if (result.success) {
         Alert.alert('Success', 'Reservation request canceled.');
@@ -132,27 +159,34 @@ export default function ComponentDetails() {
     }
   };
 
-  // ✅ Handle Back Press (Hardware & Custom Button)
+  // Handle Back Press (hardware and custom)
   const handleBackPress = () => {
     router.replace({
-      pathname: '/MainPage', // ✅ Ensure MainPage refreshes
-      params: { refresh: 'true' }, // Send a signal to refresh
+      pathname: '/MainPage',
+      params: { refresh: 'true' },
     });
   };
 
-  if (loading || !parsedComponent) {
-    return <ActivityIndicator size="large" color="#00695C" />;
+  if (loading || !componentData) {
+    return <ActivityIndicator size="large" color="#00ACC1" />;
   }
 
   return (
     <View style={styles.container}>
-      <Image source={{ uri: parsedComponent.image || 'https://via.placeholder.com/300' }} style={styles.componentImage} />
-      <Text style={styles.componentTitle}>{parsedComponent.component_name}</Text>
-      <Text style={styles.componentInfo}>Lab: {parsedComponent.lab_name}</Text>
-      {parsedComponent.faculty_name && <Text style={styles.componentInfo}>Faculty: {parsedComponent.faculty_name}</Text>}
-      {parsedComponent.department_name && <Text style={styles.componentInfo}>Department: {parsedComponent.department_name}</Text>}
-      
-      {parsedComponent.is_reserved ? (
+      <Image
+        source={{ uri: componentData.image || 'https://via.placeholder.com/300' }}
+        style={styles.componentImage}
+      />
+      <Text style={styles.componentTitle}>{componentData.component_name}</Text>
+      <Text style={styles.componentInfo}>Lab: {componentData.lab_name}</Text>
+      {componentData.faculty_name && (
+        <Text style={styles.componentInfo}>Faculty: {componentData.faculty_name}</Text>
+      )}
+      {componentData.department_name && (
+        <Text style={styles.componentInfo}>Department: {componentData.department_name}</Text>
+      )}
+
+      {componentData.is_reserved ? (
         <Text style={styles.borrowedLabel}>Already Borrowed</Text>
       ) : isRequested ? (
         <TouchableOpacity style={styles.cancelButton} onPress={handleCancelReserve}>
@@ -164,7 +198,6 @@ export default function ComponentDetails() {
         </TouchableOpacity>
       )}
 
-      {/* ✅ Custom Back Button with Refresh */}
       <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
         <Text style={styles.backButtonText}>Go Back</Text>
       </TouchableOpacity>
@@ -175,7 +208,7 @@ export default function ComponentDetails() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5FF',
+    backgroundColor: '#E8F4FF',
     padding: 20,
     alignItems: 'center',
   },
@@ -188,26 +221,26 @@ const styles = StyleSheet.create({
   componentTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#004D40',
+    color: '#0277BD',
     textAlign: 'center',
   },
   componentInfo: {
     fontSize: 16,
     marginTop: 5,
-    color: '#555',
+    color: '#424242',
     textAlign: 'center',
   },
   borrowedLabel: {
-    color: 'red',
+    color: '#D32F2F',
     fontWeight: 'bold',
     fontSize: 18,
     textAlign: 'center',
     marginTop: 20,
   },
   reserveButton: {
-    backgroundColor: '#28A745',
+    backgroundColor: '#66BB6A', // Green for reserve
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 8,
     marginTop: 20,
     width: '80%',
     alignItems: 'center',
@@ -219,9 +252,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cancelButton: {
-    backgroundColor: '#FFA500',
+    backgroundColor: '#FFA500', // Orange for cancel
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 8,
     marginTop: 20,
     width: '80%',
     alignItems: 'center',
@@ -233,9 +266,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   backButton: {
-    backgroundColor: '#D32F2F',
+    backgroundColor: '#00ACC1', // Accent blue for navigation
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 8,
     marginTop: 20,
     width: '80%',
     alignItems: 'center',

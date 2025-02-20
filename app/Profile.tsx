@@ -5,7 +5,15 @@ import { useRouter } from 'expo-router';
 
 export default function Profile() {
   const router = useRouter();
-  const [user, setUser] = useState<{ id: string; firstName: string; lastName: string; email: string; phone: string; faculty: string; profilePicture?: string } | null>(null);
+  const [user, setUser] = useState<{ 
+    id: string; 
+    firstName: string; 
+    lastName: string; 
+    email: string; 
+    phone: string; 
+    faculty: string; 
+    profilePicture?: string 
+  } | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -25,13 +33,17 @@ export default function Profile() {
 
       {user && (
         <>
-          <Image source={user.profilePicture ? { uri: user.profilePicture } : require('@/assets/default-avatar.png')} style={styles.profileImage} />
-          <Text style={styles.profileName}>{user.firstName} {user.lastName}</Text>
+          <Image 
+            source={user.profilePicture ? { uri: user.profilePicture } : require('@/assets/default-avatar.png')}
+            style={styles.profileImage}
+          />
+          <Text style={styles.profileName}>
+            {user.firstName} {user.lastName}
+          </Text>
           <Text style={styles.profileDetails}>Email: {user.email}</Text>
           <Text style={styles.profileDetails}>Phone: {user.phone}</Text>
           <Text style={styles.profileDetails}>Faculty: {user.faculty}</Text>
 
-          {/* ✅ FIXED: Use object-based navigation */}
           <TouchableOpacity 
             style={styles.editButton} 
             onPress={() => router.push({
@@ -50,47 +62,62 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#E8F4FF',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F5F5FF',
   },
   backButton: {
     position: 'absolute',
     top: 40,
     left: 20,
-    padding: 10,
-    backgroundColor: '#007BFF',
-    borderRadius: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#00ACC1',
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   backText: {
     color: '#FFF',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 15,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#00ACC1',
   },
   profileName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#0277BD',
+    marginBottom: 10,
   },
   profileDetails: {
     fontSize: 16,
-    color: '#555',
-    marginTop: 5,
+    color: '#424242',
+    marginBottom: 5,
   },
   editButton: { 
     marginTop: 20,
-    padding: 10,
-    backgroundColor: '#28A745',
-    borderRadius: 5,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#7E57C2',
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   editText: { 
     color: '#FFF',
     fontWeight: 'bold',
+    fontSize: 16,
   },
 });

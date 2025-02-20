@@ -8,11 +8,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from 'react-native';
-
 
 type Faculty = {
   id: number;
@@ -37,8 +37,8 @@ type ComponentData = {
   is_reserved: boolean;
   request_to_reserve: boolean;
   lab_name: string;
-  faculty_name?: string; // Optional
-  department_name?: string; // Optional
+  faculty_name?: string;
+  department_name?: string;
 };
 
 export default function MainPage() {
@@ -69,7 +69,6 @@ export default function MainPage() {
     loadUser();
   }, []);
   
-
   const fetchHierarchy = async () => {
     setLoading(true);
     try {
@@ -141,7 +140,6 @@ export default function MainPage() {
 
   const fetchSearchResults = async (query: string) => {
     if (!query.trim()) {
-      // Reset to full list when search is empty
       setFilteredComponents(components);
       return;
     }
@@ -264,342 +262,386 @@ export default function MainPage() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Profile Tab */}
-      {user && (
-        <TouchableOpacity style={styles.profileTab} onPress={() => router.push('/Profile')}>
-          <Image
-            source={
-              user.profilePicture
-                ? { uri: user.profilePicture }
-                : require('../assets/default-avatar.png')
-            }
-            style={styles.profileImage}
-          />
-          <Text style={styles.profileText}>Hi, {user.firstName}</Text>
-        </TouchableOpacity>
-      )}
-
-      <Text style={styles.title}>Lab Inventory Management</Text>
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
-
-      {loading && <ActivityIndicator size="large" color="#00695C" />}
-
-      <View style={styles.selectionContainer}>
-        <Text style={styles.sectionTitle}>Select Faculty:</Text>
-        <FlatList
-          horizontal
-          data={faculties}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.selectionButton,
-                selectedFaculty?.id === item.id && styles.selectedButton,
-              ]}
-              onPress={() => setSelectedFaculty(item)}
-            >
-              <Text style={styles.selectionButtonText}>{item.name}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          {user && (
+            <TouchableOpacity style={styles.profileTab} onPress={() => router.push('/Profile')}>
+              <Image
+                source={
+                  user.profilePicture
+                    ? { uri: user.profilePicture }
+                    : require('../assets/default-avatar.png')
+                }
+                style={styles.profileImage}
+              />
+              <Text style={styles.profileText}>Hi, {user.firstName}</Text>
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No faculties available.</Text>}
-        />
-      </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
 
-      {selectedFaculty && (
+        {/* Title */}
+        <Text style={styles.title}>Lab Inventory Management</Text>
+
+        {loading && <ActivityIndicator size="large" color="#00ACC1" />}
+
+        {/* Faculty Selection */}
         <View style={styles.selectionContainer}>
-          <Text style={styles.sectionTitle}>Select Department:</Text>
+          <Text style={styles.sectionTitle}>Select Faculty:</Text>
           <FlatList
             horizontal
-            data={departments.filter((dept) => dept.faculty_id === selectedFaculty.id)}
+            data={faculties}
             keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.selectionButton,
-                  selectedDepartment?.id === item.id && styles.selectedButton,
-                ]}
-                onPress={() => setSelectedDepartment(item)}
-              >
-                <Text style={styles.selectionButtonText}>{item.name}</Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={<Text style={styles.emptyText}>No departments available.</Text>}
+            renderItem={({ item }) => {
+              const isSelected = selectedFaculty?.id === item.id;
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.selectionButton,
+                    {
+                      backgroundColor: isSelected ? '#00ACC1' : '#B2EBF2',
+                      borderColor: '#00ACC1',
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedFaculty(item);
+                    setSelectedDepartment(null);
+                    setSelectedLab(null);
+                  }}
+                >
+                  <Text style={[styles.selectionButtonText, { color: isSelected ? '#FFFFFF' : '#007C91' }]}>{item.name}</Text>
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={<Text style={styles.emptyText}>No faculties available.</Text>}
           />
         </View>
-      )}
 
-      {selectedDepartment && (
-        <View style={styles.selectionContainer}>
-          <Text style={styles.sectionTitle}>Select Lab:</Text>
-          <FlatList
-            horizontal
-            data={labs.filter((lab) => lab.department_id === selectedDepartment.id)}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.selectionButton,
-                  selectedLab?.id === item.id && styles.selectedButton,
-                ]}
-                onPress={() => setSelectedLab(item)}
-              >
-                <Text style={styles.selectionButtonText}>{item.name}</Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={<Text style={styles.emptyText}>No labs available.</Text>}
-          />
-        </View>
-      )}
+        {/* Department Selection */}
+        {selectedFaculty && (
+          <View style={styles.selectionContainer}>
+            <Text style={styles.sectionTitle}>Select Department:</Text>
+            <FlatList
+              horizontal
+              data={departments.filter((dept) => dept.faculty_id === selectedFaculty.id)}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => {
+                const isSelected = selectedDepartment?.id === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.selectionButton,
+                      {
+                        backgroundColor: isSelected ? '#00ACC1' : '#B2EBF2',
+                        borderColor: '#00ACC1',
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedDepartment(item);
+                      setSelectedLab(null);
+                    }}
+                  >
+                    <Text style={[styles.selectionButtonText, { color: isSelected ? '#FFFFFF' : '#007C91' }]}>{item.name}</Text>
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.emptyText}>No departments available.</Text>}
+            />
+          </View>
+        )}
 
-      {selectedLab && (
-        <TouchableOpacity style={styles.fetchButton} onPress={fetchComponents}>
-          <Text style={styles.fetchButtonText}>Search Components</Text>
+        {/* Lab Selection */}
+        {selectedDepartment && (
+          <View style={styles.selectionContainer}>
+            <Text style={styles.sectionTitle}>Select Lab:</Text>
+            <FlatList
+              horizontal
+              data={labs.filter((lab) => lab.department_id === selectedDepartment.id)}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => {
+                const isSelected = selectedLab?.id === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.selectionButton,
+                      {
+                        backgroundColor: isSelected ? '#00ACC1' : '#B2EBF2',
+                        borderColor: '#00ACC1',
+                      },
+                    ]}
+                    onPress={() => setSelectedLab(item)}
+                  >
+                    <Text style={[styles.selectionButtonText, { color: isSelected ? '#FFFFFF' : '#007C91' }]}>{item.name}</Text>
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.emptyText}>No labs available.</Text>}
+            />
+          </View>
+        )}
+
+        {/* Fetch Components & View Requests */}
+        {selectedLab && (
+          <TouchableOpacity style={[styles.fetchButton, { backgroundColor: '#7E57C2' }]} onPress={fetchComponents}>
+            <Text style={styles.fetchButtonText}>Search Components</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.fetchButton, { backgroundColor: '#00ACC1' }]}
+          onPress={() => router.push('/ReservationsPage')}
+        >
+          <Text style={styles.fetchButtonText}>View Requests</Text>
         </TouchableOpacity>
-      )}
 
-      <TouchableOpacity
-        style={styles.fetchButton}
-        onPress={() => router.push('/ReservationsPage')}
-      >
-        <Text style={styles.fetchButtonText}>View Requests</Text>
-      </TouchableOpacity>
+        {/* Components & Search */}
+        <Text style={styles.sectionTitle}>Available Components:</Text>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search components..."
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              fetchSearchResults(text);
+            }}
+          />
+        </View>
 
-      <Text style={styles.sectionTitle}>Available Components:</Text>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search components..."
-          value={searchQuery}
-          onChangeText={(text) => {
-            setSearchQuery(text);
-            fetchSearchResults(text);
-          }}
+        <FlatList
+          data={filteredComponents}
+          keyExtractor={(item) => item.reg_no}
+          renderItem={({ item }) => (
+            <View style={styles.itemContainer}>
+              <Text style={styles.itemText}>Component: {item.component_name}</Text>
+              {item.faculty_name && <Text style={styles.itemText}>Faculty: {item.faculty_name}</Text>}
+              {item.department_name && <Text style={styles.itemText}>Department: {item.department_name}</Text>}
+              <Text style={styles.itemText}>Lab: {item.lab_name}</Text>
+
+              {item.is_reserved ? (
+                <Text style={styles.borrowedLabel}>Borrowed</Text>
+              ) : item.request_to_reserve ? (
+                <TouchableOpacity style={styles.cancelButton} onPress={() => cancelReserve(item.reg_no)}>
+                  <Text style={styles.cancelButtonText}>Cancel Request</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.reserveButton} onPress={() => requestReserve(item.reg_no)}>
+                  <Text style={styles.reserveButtonText}>Request to Reserve</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.viewDetailsButton}
+                onPress={() =>
+                  router.push({
+                    pathname: '/ComponentDetails',
+                    params: { component: JSON.stringify(item) },
+                  })
+                }
+              >
+                <Text style={styles.viewDetailsText}>View Details</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          ListEmptyComponent={<Text style={styles.emptyText}>No components available.</Text>}
         />
+
+        {/* Bottom Scanner Button */}
+        <View style={styles.bottomButtonsContainer}>
+          <TouchableOpacity style={styles.scannerButton} onPress={handleQRCodeScan}>
+            <Text style={styles.scannerButtonText}>QR Code Scanner</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      <FlatList
-  data={filteredComponents}
-  keyExtractor={(item) => item.reg_no}
-  renderItem={({ item }) => (
-    <View style={styles.itemContainer}>
-      <Text style={styles.itemText}>Component: {item.component_name}</Text>
-      {item.faculty_name && <Text style={styles.itemText}>Faculty: {item.faculty_name}</Text>}
-      {item.department_name && <Text style={styles.itemText}>Department: {item.department_name}</Text>}
-      <Text style={styles.itemText}>Lab: {item.lab_name}</Text>
-
-      {/* Display reservation status with button */}
-      {item.is_reserved ? (
-        <Text style={styles.borrowedLabel}>Borrowed</Text>
-      ) : item.request_to_reserve ? (
-        <TouchableOpacity style={styles.cancelButton} onPress={() => cancelReserve(item.reg_no)}>
-          <Text style={styles.cancelButtonText}>Cancel Request</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={styles.reserveButton} onPress={() => requestReserve(item.reg_no)}>
-          <Text style={styles.reserveButtonText}>Request to Reserve</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Navigate to details page */}
-      <TouchableOpacity
-        style={styles.viewDetailsButton}
-        onPress={() =>
-          router.push({
-            pathname: '/ComponentDetails',
-            params: { component: JSON.stringify(item) }, // Passing the whole component as a string
-          })
-        }
-      >
-        <Text style={styles.viewDetailsText}>View Details</Text>
-      </TouchableOpacity>
-    </View>
-  )}
-  ListEmptyComponent={<Text style={styles.emptyText}>No components available.</Text>}
-/>
-
-
-
-      <View style={styles.bottomButtonsContainer}>
-        <TouchableOpacity style={styles.scannerButton} onPress={handleQRCodeScan}>
-          <Text style={styles.scannerButtonText}>QR Code Scanner</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
-// ------ STYLES ------
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#E8F4FF',
+  },
   container: {
     flex: 1,
-    padding: 10,
-    backgroundColor: '#F5F5FF',
+    paddingHorizontal: 16,
+    backgroundColor: '#E8F4FF',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 10,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#0277BD',
     textAlign: 'center',
-    marginBottom: 20,
-    color: '#004D40',
+    marginVertical: 10,
   },
   profileTab: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 10,
-    borderRadius: 50,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 30,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
   },
   profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 8,
   },
   profileText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#0277BD',
   },
   logoutButton: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    backgroundColor: '#D32F2F',
-    padding: 10,
-    borderRadius: 5,
+    backgroundColor: '#FF5252',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
   },
   logoutButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '500',
+    fontSize: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 10,
-    marginBottom: 5,
-    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#424242',
+    marginVertical: 8,
   },
   selectionContainer: {
-    marginVertical: 5,
+    marginVertical: 6,
   },
   selectionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    backgroundColor: '#007BFF',
-    borderRadius: 5,
-    marginHorizontal: 5,
-  },
-  selectedButton: {
-    backgroundColor: '#0056b3',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginHorizontal: 4,
+    borderWidth: 1,
   },
   selectionButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    fontWeight: '500',
+    fontSize: 12,
   },
   fetchButton: {
-    backgroundColor: '#28A745',
-    padding: 10,
-    borderRadius: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 25,
     alignItems: 'center',
     marginVertical: 10,
   },
   fetchButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   searchContainer: {
-    marginVertical: 10,
-    marginBottom: 15,
+    marginVertical: 8,
   },
   searchInput: {
     height: 40,
-    borderColor: '#ccc',
+    borderColor: '#B0BEC5',
     borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    fontSize: 16,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    backgroundColor: '#FFFFFF',
   },
   itemContainer: {
-    padding: 15,
-    marginBottom: 10,
-    backgroundColor: '#FFF',
-    borderRadius: 5,
+    padding: 12,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
   itemText: {
-    fontSize: 16,
-    marginBottom: 5,
+    fontSize: 14,
+    color: '#424242',
+    marginBottom: 4,
   },
   reserveButton: {
-    backgroundColor: '#28A745',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 5,
+    backgroundColor: '#66BB6A',
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 6,
+    alignItems: 'center',
   },
   reserveButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 12,
   },
   borrowedLabel: {
-    color: 'red',
-    fontWeight: 'bold',
-    fontSize: 16,
+    color: '#D32F2F',
+    fontWeight: '600',
+    fontSize: 14,
     textAlign: 'center',
-    marginTop: 5,
+    marginTop: 6,
   },
   cancelButton: {
-    backgroundColor: '#FFA500',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 5,
+    backgroundColor: '#FF9800',
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 6,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 12,
   },
   viewDetailsButton: {
-    backgroundColor: '#007BFF',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 5,
+    backgroundColor: '#00ACC1',
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 6,
     alignItems: 'center',
   },
   viewDetailsText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 12,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#777',
-    fontSize: 16,
+    color: '#757575',
+    fontSize: 14,
     marginTop: 10,
   },
   bottomButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    position: 'absolute',
-    bottom: 20,
-    left: 10,
-    right: 10,
+    paddingVertical: 12,
   },
   scannerButton: {
-    backgroundColor: '#00695C',
-    padding: 15,
-    borderRadius: 5,
+    backgroundColor: '#00ACC1',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
     alignItems: 'center',
-    width: '50%',
+    marginHorizontal: 8,
   },
   scannerButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
