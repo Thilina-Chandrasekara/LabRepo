@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
+import { Linking } from 'react-native';
 import { 
   Button, 
   StyleSheet, 
@@ -54,8 +55,10 @@ export default function App() {
 
   const requestToReserve = () => {
     if (barcodeData) {
-      // Simulate sending request for component reservation based on barcodeData
-      console.log(`Sending request to reserve component with ${barcodeType}: ${barcodeData}`);
+      console.log(`Opening URL: ${barcodeData}`);
+      Linking.openURL(barcodeData).catch(err => 
+        console.error("Failed to open URL:", err)
+      );
     }
   };
 
@@ -127,7 +130,7 @@ export default function App() {
             <Text style={styles.cardTitle}>Scan QR code Information</Text>
             <View style={styles.cardContent}>
               <Text style={styles.cardText}>QR code type: {barcodeType}</Text>
-              <Text style={styles.cardText}>Your Component number {barcodeData}</Text>
+              <Text style={styles.cardText}>Your Component reservation link is  {barcodeData}</Text>
               <Text style={styles.timestamp}>
                 Scanned at: {new Date().toLocaleString()}
               </Text>

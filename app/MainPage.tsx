@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'react-native';
 
+
 type Faculty = {
   id: number;
   name: string;
@@ -36,11 +37,9 @@ type ComponentData = {
   is_reserved: boolean;
   request_to_reserve: boolean;
   lab_name: string;
-  faculty_name?: string; // Optional for selection path
-  department_name?: string; // Optional for selection path
+  faculty_name?: string; // Optional
+  department_name?: string; // Optional
 };
-
-
 
 export default function MainPage() {
   const router = useRouter();
@@ -69,6 +68,7 @@ export default function MainPage() {
     fetchHierarchy();
     loadUser();
   }, []);
+  
 
   const fetchHierarchy = async () => {
     setLoading(true);
@@ -92,21 +92,18 @@ export default function MainPage() {
         const parsedUser = JSON.parse(storedUser);
         setUser({
           id: parsedUser.id,
-          firstName: parsedUser.first_name, // ✅ Fix mapping
-          lastName: parsedUser.last_name,   // ✅ Fix mapping
+          firstName: parsedUser.first_name, 
+          lastName: parsedUser.last_name,
           email: parsedUser.email,
           phone: parsedUser.phone,
           faculty: parsedUser.faculty,
-          profilePicture: parsedUser.profilePicture, // Optional
+          profilePicture: parsedUser.profilePicture,
         });
       }
     } catch (error) {
       console.error('Failed to load user data:', error);
     }
   };
-  
-  
-  
 
   const fetchComponents = async () => {
     if (!selectedLab) {
@@ -118,17 +115,16 @@ export default function MainPage() {
       const labId = selectedLab.id;
       const response = await fetch(`https://beige-leese-44.tiiny.io/search_components.php?lab_id=${labId}`);
       const result = await response.json();
-  
+
       if (result.success) {
-        // Remove faculty and department info for selection path
         const updatedComponents = result.components.map((item: ComponentData) => ({
           reg_no: item.reg_no,
           component_name: item.component_name,
           is_reserved: Boolean(item.is_reserved),
           request_to_reserve: Boolean(item.request_to_reserve),
-          lab_name: item.lab_name, // Keep lab name
+          lab_name: item.lab_name,
         }));
-  
+
         setComponents(updatedComponents);
         setFilteredComponents(updatedComponents);
       } else {
@@ -142,29 +138,31 @@ export default function MainPage() {
       setLoading(false);
     }
   };
-  
 
   const fetchSearchResults = async (query: string) => {
     if (!query.trim()) {
-      setFilteredComponents(components); // Reset to full list when search is empty
+      // Reset to full list when search is empty
+      setFilteredComponents(components);
       return;
     }
-  
+
     setLoading(true);
     try {
       const response = await fetch(`https://beige-leese-44.tiiny.io/search.php?component_name=${query}`);
       const result = await response.json();
-  
+
       if (result.success) {
         const updatedComponents = result.components.map((item: ComponentData) => {
           const existingComponent = components.find((comp) => comp.reg_no === item.reg_no);
           return {
-            ...item, // Include faculty and department from API
-            is_reserved: Boolean(item.is_reserved), // Ensure boolean conversion
-            request_to_reserve: existingComponent ? existingComponent.request_to_reserve : Boolean(item.request_to_reserve),
+            ...item,
+            is_reserved: Boolean(item.is_reserved),
+            request_to_reserve: existingComponent 
+              ? existingComponent.request_to_reserve 
+              : Boolean(item.request_to_reserve),
           };
         });
-  
+
         setFilteredComponents(updatedComponents);
       } else {
         setFilteredComponents([]);
@@ -176,14 +174,13 @@ export default function MainPage() {
       setLoading(false);
     }
   };
-  
-    
+
   const requestReserve = async (regNo: string) => {
     if (!user) {
       Alert.alert('Error', 'User information is missing.');
       return;
     }
-  
+
     setLoading(true);
     try {
       const response = await fetch('https://beige-leese-44.tiiny.io/request_reserve.php', {
@@ -191,13 +188,13 @@ export default function MainPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reg_no: regNo,
-          user_id: user.id, // Send user ID
-          user_name: `${user.firstName} ${user.lastName}`, // Send full name
-          email: user.email, // Send email
-          phone_number: user.phone, // 
+          user_id: user.id,
+          user_name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          phone_number: user.phone,
         }),
       });
-  
+
       const result = await response.json();
       if (result.success) {
         Alert.alert('Success', 'Request to reserve submitted.');
@@ -211,14 +208,13 @@ export default function MainPage() {
       setLoading(false);
     }
   };
-  
 
   const cancelReserve = async (regNo: string) => {
     if (!user) {
       Alert.alert('Error', 'User information is missing.');
       return;
     }
-  
+
     setLoading(true);
     try {
       const response = await fetch('https://beige-leese-44.tiiny.io/cancel_reserve.php', {
@@ -226,10 +222,10 @@ export default function MainPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reg_no: regNo,
-          user_id: user.id, // ✅ Send the user's ID
+          user_id: user.id,
         }),
       });
-  
+
       const result = await response.json();
       if (result.success) {
         Alert.alert('Success', 'Reservation request canceled.');
@@ -243,7 +239,6 @@ export default function MainPage() {
       setLoading(false);
     }
   };
-  
 
   const updateLocalReserveState = (regNo: string, requestToReserve: boolean) => {
     setComponents((prevComponents) =>
@@ -251,14 +246,13 @@ export default function MainPage() {
         item.reg_no === regNo ? { ...item, request_to_reserve: requestToReserve } : item
       )
     );
-  
+
     setFilteredComponents((prevFiltered) =>
       prevFiltered.map((item) =>
         item.reg_no === regNo ? { ...item, request_to_reserve: requestToReserve } : item
       )
     );
   };
-  
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('user');
@@ -271,18 +265,21 @@ export default function MainPage() {
 
   return (
     <View style={styles.container}>
-            {/* Profile Tab */}
-            {user && (
+      {/* Profile Tab */}
+      {user && (
         <TouchableOpacity style={styles.profileTab} onPress={() => router.push('/Profile')}>
           <Image
-            source={user.profilePicture ? { uri: user.profilePicture } : require('../assets/default-avatar.png')}
+            source={
+              user.profilePicture
+                ? { uri: user.profilePicture }
+                : require('../assets/default-avatar.png')
+            }
             style={styles.profileImage}
           />
           <Text style={styles.profileText}>Hi, {user.firstName}</Text>
         </TouchableOpacity>
       )}
 
-      
       <Text style={styles.title}>Lab Inventory Management</Text>
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Logout</Text>
@@ -361,12 +358,14 @@ export default function MainPage() {
         <TouchableOpacity style={styles.fetchButton} onPress={fetchComponents}>
           <Text style={styles.fetchButtonText}>Search Components</Text>
         </TouchableOpacity>
-        
       )}
-      <TouchableOpacity style={styles.fetchButton} onPress={() => router.push('/ReservationsPage')}>
+
+      <TouchableOpacity
+        style={styles.fetchButton}
+        onPress={() => router.push('/ReservationsPage')}
+      >
         <Text style={styles.fetchButtonText}>View Requests</Text>
       </TouchableOpacity>
-
 
       <Text style={styles.sectionTitle}>Available Components:</Text>
       <View style={styles.searchContainer}>
@@ -391,24 +390,36 @@ export default function MainPage() {
       {item.department_name && <Text style={styles.itemText}>Department: {item.department_name}</Text>}
       <Text style={styles.itemText}>Lab: {item.lab_name}</Text>
 
-      {/* Display "Borrowed" if reserved */}
+      {/* Display reservation status with button */}
       {item.is_reserved ? (
         <Text style={styles.borrowedLabel}>Borrowed</Text>
       ) : item.request_to_reserve ? (
-        // If the user requested to reserve, show "Cancel Request" button
         <TouchableOpacity style={styles.cancelButton} onPress={() => cancelReserve(item.reg_no)}>
           <Text style={styles.cancelButtonText}>Cancel Request</Text>
         </TouchableOpacity>
       ) : (
-        // If not reserved or requested, show "Request to Reserve" button
         <TouchableOpacity style={styles.reserveButton} onPress={() => requestReserve(item.reg_no)}>
           <Text style={styles.reserveButtonText}>Request to Reserve</Text>
         </TouchableOpacity>
       )}
+
+      {/* Navigate to details page */}
+      <TouchableOpacity
+        style={styles.viewDetailsButton}
+        onPress={() =>
+          router.push({
+            pathname: '/ComponentDetails',
+            params: { component: JSON.stringify(item) }, // Passing the whole component as a string
+          })
+        }
+      >
+        <Text style={styles.viewDetailsText}>View Details</Text>
+      </TouchableOpacity>
     </View>
   )}
   ListEmptyComponent={<Text style={styles.emptyText}>No components available.</Text>}
 />
+
 
 
       <View style={styles.bottomButtonsContainer}>
@@ -420,6 +431,7 @@ export default function MainPage() {
   );
 }
 
+// ------ STYLES ------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -536,6 +548,35 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: 'bold',
   },
+  borrowedLabel: {
+    color: 'red',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#FFA500',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 5,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  viewDetailsButton: {
+    backgroundColor: '#007BFF',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 5,
+    alignItems: 'center',
+  },
+  viewDetailsText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
   emptyText: {
     textAlign: 'center',
     color: '#777',
@@ -558,24 +599,6 @@ const styles = StyleSheet.create({
     width: '50%',
   },
   scannerButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-  },
-  borrowedLabel: {
-    color: 'red',
-    fontWeight: 'bold',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 5,
-  },
-  cancelButton: {
-    backgroundColor: '#FFA500', // Orange for cancel request
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 5,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
     color: '#FFF',
     fontWeight: 'bold',
   },
